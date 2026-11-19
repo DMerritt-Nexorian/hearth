@@ -55,14 +55,32 @@ function fromBill(bill: Bill): Draft {
   };
 }
 
+const QUICK: { name: string; category: BillCategory }[] = [
+  { name: "Rent", category: "housing" },
+  { name: "Electric", category: "electric" },
+  { name: "Phone", category: "phone" },
+  { name: "Groceries", category: "groceries" },
+  { name: "Insurance", category: "insurance" },
+];
+
 export function Bills() {
   const profile = useHearth((s) => s.profile);
   const bills = useHearth((s) => s.bills);
   const upsert = useHearth((s) => s.upsertBill);
   const remove = useHearth((s) => s.removeBill);
+  const markReviewed = useHearth((s) => s.markReviewed);
   const [draft, setDraft] = useState<Draft>(blankDraft);
   const [error, setError] = useState("");
   const [pendingRemove, setPendingRemove] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const duplicate =
+    draft.name.trim().length > 0 &&
+    bills.some((b) => b.id !== draft.id && b.name.trim().toLowerCase() === draft.name.trim().toLowerCase());
+  const shown = bills.filter((b) => {
+    const hay = `${b.name} ${CATEGORY_LABEL[b.category]}`.toLowerCase();
+    return hay.includes(query.trim().toLowerCase());
+  });
+  const ledgerMonthly = bills.reduce((sum, bill) => sum + monthlyCents(bill), 0);
 
   function save() {
     const amount = parseDollars(draft.amount);
@@ -114,6 +132,18 @@ export function Bills() {
       <p className="mt-2 max-w-xl text-muted">
         Enter what you are charged. Groceries and transit belong here so the month is honest. Hearth will not tell you to eat less.
       </p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {QUICK.map((item) => (
+          <button
+            key={item.name}
+            type="button"
+            className="btn btn-quiet"
+            onClick={() => setDraft({ ...blankDraft(), name: item.name, category: item.category })}
+          >
+            Start {item.name.toLowerCase()}
+          </button>
+        ))}
+      </div>
       <form
         className="mt-5 grid gap-4 sm:grid-cols-2"
         onSubmit={(e) => {
@@ -176,6 +206,9 @@ export function Bills() {
           </>
         ) : null}
         {error ? <p className="text-sm text-brass sm:col-span-2">{error}</p> : null}
+        {duplicate ? (
+          <p className="text-sm text-muted sm:col-span-2">A bill with this name is already on the ledger. Save only if it is a second one.</p>
+        ) : null}
         <div className="flex gap-3 sm:col-span-2">
           <button type="submit" className="btn btn-ink">
             {draft.id ? "Save bill" : "Add bill"}
@@ -190,18 +223,32 @@ export function Bills() {
 
       <Panel>
         <h2 className="text-2xl">Ledger</h2>
+        {bills.length > 0 ? (
+          <p className="mt-2 tabular-nums text-muted">{formatUSD(ledgerMonthly)} a month across {bills.length} {bills.length === 1 ? "bill" : "bills"}.</p>
+        ) : null}
+        {bills.length > 4 ? (
+          <label className="mt-3 flex flex-col gap-1 text-sm">
+            Find a bill
+            <input value={query} onChange={(e) => setQuery(e.target.value)} className="field-input" placeholder="Name" />
+          </label>
+        ) : null}
         {bills.length === 0 ? <p className="mt-3 text-muted">Nothing entered.</p> : null}
+        {bills.length > 0 && shown.length === 0 ? <p className="mt-3 text-muted">Nothing matches that name.</p> : null}
         <ul className="mt-4 flex flex-col">
-          {bills.map((bill) => (
+          {shown.map((bill) => (
             <li key={bill.id} className="flex flex-col gap-3 border-t border-line py-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="font-medium">{bill.name}</p>
                 <p className="text-sm text-muted">
                   {CATEGORY_LABEL[bill.category]} · {formatUSD(bill.amountCents)} {CYCLE_LABEL[bill.cycle].toLowerCase()} ·{" "}
                   <span className="tabular-nums">{formatUSD(monthlyCents(bill))} / month</span>
+                  {bill.lastReviewed ? ` · reviewed ${bill.lastReviewed}` : ""}
                 </p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
+                <button type="button" className="btn btn-quiet" onClick={() => markReviewed(bill.id)}>
+                  Reviewed today
+                </button>
                 <button type="button" className="btn btn-quiet" onClick={() => setDraft(fromBill(bill))}>
                   Edit
                 </button>

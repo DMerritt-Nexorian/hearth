@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { BadgeCheck, FileText, Landmark, Receipt, Scale, ScrollText } from "lucide-react";
 import { analyze, verifiedAnnualCents } from "@/lib/hearth/engine";
 import { KB_AS_OF } from "@/lib/hearth/knowledge";
-import { formatUSD, formatUSDRange } from "@/lib/hearth/money";
+import { formatUSD, formatUSDRange, todayISO } from "@/lib/hearth/money";
 import { useHearth } from "@/lib/hearth/store";
 import { Bills } from "./bills";
 import { DebtView } from "./debt-view";
@@ -69,7 +69,10 @@ export function HearthGate() {
                     className={`flex min-h-14 flex-1 flex-col items-center justify-center gap-1 text-xs lg:h-11 lg:flex-none lg:flex-row lg:justify-start lg:gap-3 lg:px-4 lg:text-base ${on ? "text-ink" : "text-muted"}`}
                   >
                     <Icon className="size-5" strokeWidth={1.75} aria-hidden />
-                    {item.label}
+                    <span className="inline-flex items-center gap-1">
+                      {item.label}
+                      {item.id === "plan" ? <DueCount /> : null}
+                    </span>
                   </button>
                 );
               })}
@@ -87,6 +90,21 @@ export function HearthGate() {
       </div>
     </div>
   );
+}
+
+function DueCount() {
+  const profile = useHearth((s) => s.profile);
+  const bills = useHearth((s) => s.bills);
+  const actions = useHearth((s) => s.actions);
+  if (!profile) return null;
+  const today = todayISO();
+  const due = analyze(profile, bills).findings.filter((f) => {
+    const follow = actions[f.id]?.followUp;
+    const status = actions[f.id]?.status ?? "open";
+    return follow != null && follow <= today && (status === "open" || status === "doing");
+  }).length;
+  if (due === 0) return null;
+  return <span className="tabular-nums text-brass">{due}</span>;
 }
 
 function PrintBrief() {

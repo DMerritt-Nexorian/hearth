@@ -11,7 +11,13 @@ Hearth turns a household ledger into a short list of things worth doing, shows t
 - See which assistance programs are worth a phone call, which are unlikely on income alone, and which are closed. The Affordable Connectivity Program is listed as closed on purpose.
 - Compare debt payoff as minimums, avalanche, and snowball. The model is not a lender.
 - Record a change only after a later statement confirms it. That is the only number treated as verified.
-- Download `hearth-case.json` or a single `hearth-brief.html` from the File tab. Either file opens without an account.
+- Download `hearth-case.json` or a single `hearth-brief.html` from the File tab. Either file opens without an account. Import asks before it replaces the file already in the browser, and the chosen extra debt payment travels with the file.
+- Switch the month between a month and a year. Verified savings stay a yearly number either way.
+- See how many plan items are still open, which follow-ups are due, and which are inside 21 days.
+- See when the ledger is missing housing, energy, groceries, or a phone or internet bill, and where the month goes.
+- Add common bills from a starter, get warned about a duplicate name, search the ledger, and mark a bill reviewed today.
+- Filter the plan, and copy the steps for one item.
+- Choose an extra debt payment. If it is larger than what is left after the bills, the model uses only that leftover. It does not invent the difference.
 
 ## What this is not
 

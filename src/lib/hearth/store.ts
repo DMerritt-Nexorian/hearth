@@ -11,6 +11,8 @@ export type CaseData = {
   verifications: Verification[];
   audit: AuditEvent[];
   fictional: boolean;
+  /** Null means "use whatever is left after the bills." */
+  debtExtraCents: number | null;
 };
 
 type Store = CaseData & {
@@ -26,6 +28,8 @@ type Store = CaseData & {
   loadExample: () => void;
   replaceAll: (data: CaseData) => void;
   clearAll: () => void;
+  markReviewed: (id: string) => void;
+  setDebtExtra: (cents: number | null) => void;
 };
 
 const blank: CaseData = {
@@ -35,6 +39,7 @@ const blank: CaseData = {
   verifications: [],
   audit: [],
   fictional: false,
+  debtExtraCents: null,
 };
 
 function stamp(kind: string, detail: string): AuditEvent {
@@ -115,6 +120,7 @@ export const useHearth = create<Store>()(
           actions: {},
           verifications: [],
           fictional: true,
+          debtExtraCents: null,
           audit: withAudit(
             get().audit,
             stamp("example", "Loaded the fictional Hale household. These are not your numbers."),
@@ -122,13 +128,32 @@ export const useHearth = create<Store>()(
         }),
       replaceAll: (data) =>
         set({
+          ...blank,
           ...data,
+          debtExtraCents: data.debtExtraCents ?? null,
           audit: withAudit(data.audit, stamp("import", "Imported a case file. Previous on-screen data was replaced.")),
         }),
       clearAll: () =>
         set({
           ...blank,
           audit: [stamp("clear", "Cleared the household file from this browser.")],
+        }),
+      markReviewed: (id) => {
+        const bill = get().bills.find((b) => b.id === id);
+        if (!bill) return;
+        const next = { ...bill, lastReviewed: todayISO() };
+        set({
+          bills: get().bills.map((b) => (b.id === id ? next : b)),
+          audit: withAudit(get().audit, stamp("bill-review", `Marked ${bill.name} reviewed on ${next.lastReviewed}.`)),
+        });
+      },
+      setDebtExtra: (cents) =>
+        set({
+          debtExtraCents: cents,
+          audit: withAudit(
+            get().audit,
+            stamp("debt-extra", cents == null ? "Debt extra reset to the full surplus." : "Debt extra payment changed."),
+          ),
         }),
     }),
     {
@@ -142,6 +167,7 @@ export const useHearth = create<Store>()(
         verifications: state.verifications,
         audit: state.audit,
         fictional: state.fictional,
+        debtExtraCents: state.debtExtraCents,
       }),
     },
   ),

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { EXAMPLE_BILLS, EXAMPLE_PROFILE } from "./example.ts";
-import { analyze, monthlyCents, simulateDebt, verifiedAnnualCents } from "./engine.ts";
+import { analyze, ledgerGaps, monthlyCents, resolveExtra, simulateDebt, verifiedAnnualCents } from "./engine.ts";
 import type { Bill, Profile } from "./types.ts";
 
 const TODAY = "2026-11-18";
@@ -115,6 +115,18 @@ test("avalanche interest is below snowball, and a starved minimum does not prete
   );
   assert.equal(trapped.unbounded, true);
   assert.equal(trapped.interestCents, null);
+});
+
+test("extra debt payments cannot exceed the surplus, and a thin ledger says so", () => {
+  assert.deepEqual(resolveExtra(10_000, null), { extraCents: 10_000, clamped: false, partial: false });
+  assert.deepEqual(resolveExtra(10_000, 4_000), { extraCents: 4_000, clamped: false, partial: true });
+  assert.deepEqual(resolveExtra(10_000, 50_000), { extraCents: 10_000, clamped: true, partial: false });
+  assert.deepEqual(resolveExtra(-500, 100), { extraCents: 0, clamped: true, partial: false });
+  const gaps = ledgerGaps([
+    bill({ id: "food", name: "Groceries", category: "groceries", amountCents: 1 }),
+  ]);
+  assert.equal(gaps.some((g) => /Housing/.test(g)), true);
+  assert.equal(gaps.some((g) => /Groceries/.test(g)), false);
 });
 
 test("verified savings are the confirmed delta only", () => {

@@ -1,11 +1,16 @@
-import { analyze } from "@/lib/hearth/engine";
-import { formatUSD } from "@/lib/hearth/money";
+import { useState } from "react";
+import { analyze, buildDebtScenarios, resolveExtra } from "@/lib/hearth/engine";
+import { centsToInput, formatUSD, parseDollars } from "@/lib/hearth/money";
 import { useHearth } from "@/lib/hearth/store";
-import { Panel } from "./ui";
+import { Panel, TextInput } from "./ui";
 
 export function DebtView() {
   const profile = useHearth((s) => s.profile);
   const bills = useHearth((s) => s.bills);
+  const storedExtra = useHearth((s) => s.debtExtraCents);
+  const setDebtExtra = useHearth((s) => s.setDebtExtra);
+  const [raw, setRaw] = useState(storedExtra == null ? "" : centsToInput(storedExtra));
+  const [extraError, setExtraError] = useState("");
   if (!profile) {
     return (
       <div className="py-6">
@@ -15,6 +20,8 @@ export function DebtView() {
     );
   }
   const analysis = analyze(profile, bills);
+  const choice = resolveExtra(analysis.monthlySurplusCents, storedExtra);
+  const debt = buildDebtScenarios(bills, analysis.monthlySurplusCents, storedExtra);
   const debts = bills.filter((b) => b.category === "debt");
   return (
     <div className="py-6">
@@ -24,9 +31,52 @@ export function DebtView() {
         roll a finished payment onto the next debt. None of these is a lender, a settlement company, or a refinance.
       </p>
       <p className="mt-4 text-sm text-muted">
-        Extra payment used in the model: {formatUSD(analysis.extraPaymentCents)} a month
-        {analysis.extraPaymentCents === 0 ? " — the list already uses the whole take-home." : " — the surplus after every bill, including groceries."}
+        Surplus after every bill, including groceries: {formatUSD(Math.max(0, analysis.monthlySurplusCents))} a month.
+        The model is using {formatUSD(debt.extraCents)}.
+        {choice.clamped ? " The larger number was cut down. Hearth will not invent the rest." : ""}
+        {choice.partial ? " The rest of the surplus is left out of the payoff on purpose." : ""}
       </p>
+      <form
+        className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const parsed = raw.trim() === "" ? null : parseDollars(raw);
+          if (raw.trim() !== "" && parsed == null) {
+            setExtraError("Enter a dollar amount, or use the full surplus.");
+            return;
+          }
+          setExtraError("");
+          setDebtExtra(parsed);
+        }}
+      >
+        <label className="flex flex-col gap-1 text-sm">
+          Extra you will actually send
+          <TextInput
+            inputMode="decimal"
+            value={raw}
+            placeholder={centsToInput(Math.max(0, analysis.monthlySurplusCents))}
+            onChange={(e) => {
+              setRaw(e.target.value);
+              setExtraError("");
+            }}
+          />
+        </label>
+        <button type="submit" className="btn btn-ink">
+          Use this amount
+        </button>
+        <button
+          type="button"
+          className="btn btn-quiet"
+          onClick={() => {
+            setRaw("");
+            setExtraError("");
+            setDebtExtra(null);
+          }}
+        >
+          Use the full surplus
+        </button>
+      </form>
+      {extraError ? <p className="mt-2 text-sm text-brass">{extraError}</p> : null}
       {debts.length === 0 ? (
         <p className="mt-6">
           Add a bill in the Debt payment category with a balance and an APR. The payment amount is the minimum, not the balance.
@@ -43,7 +93,7 @@ export function DebtView() {
         </ul>
       )}
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
-        {analysis.debts.map((scene) => (
+        {debt.scenarios.map((scene) => (
           <article key={scene.name} className="border border-line bg-sheet p-4">
             <h3 className="text-2xl">{scene.name}</h3>
             <p className="mt-3 font-display text-3xl tabular-nums">

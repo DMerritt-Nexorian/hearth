@@ -2,6 +2,7 @@ import { useState } from "react";
 import { briefHtml, downloadText, parseCaseFile, serializeCase } from "@/lib/hearth/case-file";
 import { KB_AS_OF } from "@/lib/hearth/knowledge";
 import { useHearth } from "@/lib/hearth/store";
+import type { CaseData } from "@/lib/hearth/store";
 import { Panel } from "./ui";
 
 export function RecordView() {
@@ -12,12 +13,14 @@ export function RecordView() {
     verifications: s.verifications,
     audit: s.audit,
     fictional: s.fictional,
+    debtExtraCents: s.debtExtraCents,
   }));
   const replaceAll = useHearth((s) => s.replaceAll);
   const clearAll = useHearth((s) => s.clearAll);
   const loadExample = useHearth((s) => s.loadExample);
   const [message, setMessage] = useState("");
   const [confirmClear, setConfirmClear] = useState(false);
+  const [pending, setPending] = useState<{ name: string; data: CaseData } | null>(null);
 
   function exportJson() {
     downloadText("hearth-case.json", serializeCase(data), "application/json");
@@ -37,8 +40,8 @@ export function RecordView() {
         setMessage("That file is not a Hearth case, version 1.");
         return;
       }
-      replaceAll(parsed);
-      setMessage(`Imported ${file.name}. The previous file in this browser was replaced.`);
+      setPending({ name: file.name, data: parsed });
+      setMessage(`${file.name} is ready. Confirm before it replaces the file in this browser.`);
     } catch {
       setMessage("Could not read that file as JSON.");
     }
@@ -66,11 +69,32 @@ export function RecordView() {
             type="file"
             accept="application/json,.json"
             className="sr-only"
-            onChange={(e) => void onFile(e.target.files?.[0])}
+            onChange={(e) => {
+              void onFile(e.target.files?.[0]);
+              e.target.value = "";
+            }}
           />
         </label>
       </div>
       {message ? <p className="mt-3 text-sm">{message}</p> : null}
+      {pending ? (
+        <div className="mt-3 flex flex-wrap gap-3">
+          <button
+            type="button"
+            className="btn btn-brass"
+            onClick={() => {
+              replaceAll(pending.data);
+              setMessage(`Imported ${pending.name}. The previous file in this browser was replaced.`);
+              setPending(null);
+            }}
+          >
+            Confirm import
+          </button>
+          <button type="button" className="btn btn-quiet" onClick={() => setPending(null)}>
+            Keep the current file
+          </button>
+        </div>
+      ) : null}
 
       <Panel>
         <h2 className="text-2xl">What this is</h2>

@@ -85,6 +85,7 @@ export function parseCaseFile(raw: unknown): PortableCase | null {
     verifications: raw.verifications as Verification[],
     audit: raw.audit as AuditEvent[],
     fictional: raw.fictional === true,
+    debtExtraCents: typeof raw.debtExtraCents === "number" ? raw.debtExtraCents : null,
   };
 }
 

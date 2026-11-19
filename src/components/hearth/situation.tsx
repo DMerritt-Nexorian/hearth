@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { analyze, verifiedAnnualCents } from "@/lib/hearth/engine";
-import { formatUSD, formatUSDRange, parseDollars, todayISO } from "@/lib/hearth/money";
+import { analyze, ledgerGaps, monthlyCents, verifiedAnnualCents } from "@/lib/hearth/engine";
+import { daysUntil, formatUSD, formatUSDRange, parseDollars, todayISO } from "@/lib/hearth/money";
 import { useHearth } from "@/lib/hearth/store";
 import type { Housing, Profile } from "@/lib/hearth/types";
 import { US_STATES } from "@/lib/hearth/types";
@@ -62,6 +62,7 @@ function Dashboard({
   const actions = useHearth((s) => s.actions);
   const verifications = useHearth((s) => s.verifications);
   const [editing, setEditing] = useState(false);
+  const [yearly, setYearly] = useState(false);
   const analysis = analyze(profile, bills);
   const verified = verifiedAnnualCents(verifications);
   const today = todayISO();
@@ -72,6 +73,29 @@ function Dashboard({
   });
   const asks = analysis.programs.filter((p) => p.status === "ask");
   const short = analysis.monthlySurplusCents < 0;
+  const gaps = ledgerGaps(bills);
+  const span = yearly ? 12 : 1;
+  const money = (cents: number) => formatUSD(cents * span);
+  const openWork = analysis.findings.filter((f) => {
+    const status = actions[f.id]?.status ?? "open";
+    return status === "open" || status === "doing";
+  }).length;
+  const soon = analysis.findings.filter((f) => {
+    const follow = actions[f.id]?.followUp;
+    const status = actions[f.id]?.status ?? "open";
+    if (!follow || status === "done" || status === "skipped") return false;
+    const days = daysUntil(follow, today);
+    return days != null && days > 0 && days <= 21;
+  });
+  const shares = bills
+    .slice()
+    .sort((a, b) => monthlyCents(b) - monthlyCents(a))
+    .slice(0, 6);
+  const biggest = shares.reduce((max, bill) => Math.max(max, monthlyCents(bill)), 0);
+  const runwayMonths =
+    analysis.monthlyObligationsCents > 0 ? profile.savingsCents / analysis.monthlyObligationsCents : null;
+  const gapMonths =
+    short && analysis.monthlySurplusCents < 0 ? profile.savingsCents / Math.abs(analysis.monthlySurplusCents) : null;
 
   return (
     <div className="py-6">
@@ -91,7 +115,18 @@ function Dashboard({
           {editing ? "Close" : "Edit household"}
         </button>
       </div>
-      <div className="rule mt-4" />
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <div className="rule" />
+        <button type="button" className={`btn ${yearly ? "btn-quiet" : "btn-ink"}`} onClick={() => setYearly(false)}>
+          Month
+        </button>
+        <button type="button" className={`btn ${yearly ? "btn-ink" : "btn-quiet"}`} onClick={() => setYearly(true)}>
+          Year
+        </button>
+        <p className="text-sm text-muted">
+          {openWork} of {analysis.findings.length} plan items still open. Verified savings stay annual either way.
+        </p>
+      </div>
       {editing ? (
         <Intake
           initial={{
@@ -116,11 +151,11 @@ function Dashboard({
         />
       ) : null}
       <div className="mt-8 grid gap-8 sm:grid-cols-3">
-        <Stat label="Take-home" value={formatUSD(analysis.monthlyIncomeCents)} note="After tax, as entered." />
-        <Stat label="Bills on this list" value={formatUSD(analysis.monthlyObligationsCents)} />
+        <Stat label={yearly ? "Take-home this year" : "Take-home"} value={money(analysis.monthlyIncomeCents)} note="After tax, as entered. Year is twelve times the month." />
+        <Stat label={yearly ? "Bills this year" : "Bills on this list"} value={money(analysis.monthlyObligationsCents)} />
         <Stat
-          label={short ? "Short each month" : "Left each month"}
-          value={formatUSD(Math.abs(analysis.monthlySurplusCents))}
+          label={short ? (yearly ? "Short this year" : "Short each month") : yearly ? "Left this year" : "Left each month"}
+          value={money(Math.abs(analysis.monthlySurplusCents))}
           tone={short ? "brass" : "ink"}
           note={
             analysis.housingRatio != null
@@ -142,13 +177,74 @@ function Dashboard({
           </button>
         </div>
       </Panel>
+      {gaps.length > 0 ? (
+        <Panel>
+          <h2 className="text-2xl">The ledger is thin</h2>
+          <ul className="mt-3 list-disc space-y-1 pl-5">
+            {gaps.map((gap) => (
+              <li key={gap}>{gap}</li>
+            ))}
+          </ul>
+          <button type="button" className="btn btn-quiet mt-4" onClick={() => go("bills")}>
+            Add the missing bills
+          </button>
+        </Panel>
+      ) : null}
+      <Panel>
+        <h2 className="text-2xl">Where the month goes</h2>
+        {shares.length === 0 ? (
+          <p className="mt-3 text-muted">No bills yet.</p>
+        ) : (
+          <ul className="mt-4 flex flex-col gap-3">
+            {shares.map((bill) => {
+              const amount = monthlyCents(bill);
+              const pct = biggest <= 0 ? 0 : Math.round((amount / biggest) * 100);
+              return (
+                <li key={bill.id}>
+                  <div className="flex items-baseline justify-between gap-3 text-sm">
+                    <span>{bill.name}</span>
+                    <span className="tabular-nums text-muted">{formatUSD(amount)} / month</span>
+                  </div>
+                  <div className="mt-1 h-1 bg-line">
+                    <div className="h-1 bg-brass" style={{ width: `${amount > 0 ? Math.max(pct, 4) : 0}%` }} />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        <p className="mt-4 text-sm text-muted">
+          {runwayMonths == null
+            ? "Add a bill before cash can be compared with the month."
+            : `Cash on hand covers about ${runwayMonths.toFixed(1)} months of these bills. That is cash against this list, not a scored emergency fund.`}
+          {gapMonths != null
+            ? ` Against the shortfall alone, that cash lasts about ${gapMonths.toFixed(1)} months.`
+            : ""}
+        </p>
+      </Panel>
       {due.length > 0 ? (
         <Panel>
           <h2 className="text-2xl">Follow-ups due</h2>
           <ul className="mt-3 flex flex-col gap-2">
             {due.map((f) => (
-              <li key={f.id} className="text-base">
-                {f.title} · {actions[f.id]?.followUp}
+              <li key={f.id}>
+                <button type="button" className="text-left underline decoration-brass underline-offset-4" onClick={() => go("plan")}>
+                  {f.title} · {actions[f.id]?.followUp}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      ) : null}
+      {soon.length > 0 ? (
+        <Panel>
+          <h2 className="text-2xl">Coming up</h2>
+          <ul className="mt-3 flex flex-col gap-2">
+            {soon.map((f) => (
+              <li key={f.id}>
+                <button type="button" className="text-left underline decoration-brass underline-offset-4" onClick={() => go("plan")}>
+                  {f.title} · {actions[f.id]?.followUp}
+                </button>
               </li>
             ))}
           </ul>

@@ -498,9 +498,36 @@ export function simulateDebt(
   return { months: null, interestCents: null, unbounded: true, order: orderNames };
 }
 
-export function buildDebtScenarios(bills: Bill[], surplusCents: number): { scenarios: DebtScenario[]; extraCents: number } {
+export function ledgerGaps(bills: Bill[]): string[] {
+  const cats = new Set(bills.map((b) => b.category));
+  const gaps: string[] = [];
+  if (!cats.has("housing")) gaps.push("Housing is missing. Rent or a mortgage changes the whole month.");
+  if (!cats.has("electric") && !cats.has("gas")) gaps.push("No electric or gas bill is on the list.");
+  if (!cats.has("groceries")) gaps.push("Groceries are missing, so whatever is left over is probably overstated.");
+  if (!cats.has("phone") && !cats.has("internet")) gaps.push("No phone or internet bill.");
+  return gaps;
+}
+
+/** Never invents money. A blank request uses the surplus. A larger request is cut down to it. */
+export function resolveExtra(
+  surplusCents: number,
+  requested: number | null,
+): { extraCents: number; clamped: boolean; partial: boolean } {
+  const room = Math.max(0, surplusCents);
+  if (requested == null) return { extraCents: room, clamped: false, partial: false };
+  const asked = Math.max(0, Math.round(requested));
+  if (asked > room) return { extraCents: room, clamped: true, partial: false };
+  return { extraCents: asked, clamped: false, partial: asked < room };
+}
+
+export function buildDebtScenarios(
+  bills: Bill[],
+  surplusCents: number,
+  requested: number | null = null,
+): { scenarios: DebtScenario[]; extraCents: number; clamped: boolean; partial: boolean } {
   const lines = debtLines(bills);
-  const extra = Math.max(0, surplusCents);
+  const choice = resolveExtra(surplusCents, requested);
+  const extra = choice.extraCents;
   const specs: { name: DebtScenario["name"]; key: "minimums" | "avalanche" | "snowball"; extra: number }[] = [
     { name: "Minimums only", key: "minimums", extra: 0 },
     { name: "Avalanche", key: "avalanche", extra },
@@ -511,6 +538,12 @@ export function buildDebtScenarios(bills: Bill[], surplusCents: number): { scena
     let note = "Model only. It assumes the rate stays constant, you add no new charges, and the extra payment never misses a month.";
     if (lines.length === 0) note = "Add a debt with a balance, an APR, and a payment to run this.";
     else if (sim.unbounded) note = "These payments do not clear the balance within 40 years. The minimum is not covering interest, or the extra payment is zero. This is not a cue to borrow.";
+    else if (spec.key !== "minimums" && choice.clamped)
+      note =
+        "The amount entered is larger than the surplus. The model used only what is left after the bills. It will not invent the difference.";
+    else if (spec.key !== "minimums" && choice.partial)
+      note =
+        "This uses only the extra you chose, not the whole surplus. The rate is assumed constant, with no new charges.";
     else if (spec.key !== "minimums" && extra === 0)
       note =
         "There is no surplus after the bills on this list. Avalanche and snowball add nothing extra; they only roll a payment forward after a balance hits zero. Do not create a surplus by skipping food, rent, or insurance.";
@@ -523,7 +556,7 @@ export function buildDebtScenarios(bills: Bill[], surplusCents: number): { scena
       note,
     };
   });
-  return { scenarios, extraCents: extra };
+  return { scenarios, extraCents: extra, clamped: choice.clamped, partial: choice.partial };
 }
 
 function program(

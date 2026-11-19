@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { confidenceWord, analyze, riskWord } from "@/lib/hearth/engine";
 import { formatUSDRange } from "@/lib/hearth/money";
-import { useHearth } from "@/lib/hearth/store";
+import { actionStatus, useHearth } from "@/lib/hearth/store";
 import type { ActionStatus, Finding, ProgramMatch, ProgramStatus } from "@/lib/hearth/types";
 import { Panel } from "./ui";
 
@@ -23,6 +23,8 @@ const PROGRAM_LABEL: Record<ProgramStatus, string> = {
 export function Plan() {
   const profile = useHearth((s) => s.profile);
   const bills = useHearth((s) => s.bills);
+  const actions = useHearth((s) => s.actions);
+  const [filter, setFilter] = useState<"todo" | "done" | "skipped" | "all">("todo");
   if (!profile) {
     return (
       <div className="py-6">
@@ -32,6 +34,12 @@ export function Plan() {
     );
   }
   const analysis = analyze(profile, bills);
+  const visible = analysis.findings.filter((finding) => {
+    const status = actionStatus(actions, finding.id);
+    if (filter === "all") return true;
+    if (filter === "todo") return status === "open" || status === "doing";
+    return status === filter;
+  });
   return (
     <div className="py-6">
       <h2 className="text-3xl">Ranked work</h2>
@@ -39,11 +47,27 @@ export function Plan() {
         A cash shortfall stays first. Everything else is ordered by the middle of its annual range, discounted for low
         confidence, higher risk, and time. Ranges are not added together. They overlap, and none of them are savings.
       </p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {(
+          [
+            ["todo", "Still to do"],
+            ["done", "Done"],
+            ["skipped", "Won't do"],
+            ["all", "All"],
+          ] as const
+        ).map(([id, label]) => (
+          <button key={id} type="button" className={`btn ${filter === id ? "btn-ink" : "btn-quiet"}`} onClick={() => setFilter(id)}>
+            {label}
+          </button>
+        ))}
+      </div>
       {analysis.findings.length === 0 ? (
         <p className="mt-6">Nothing in the rules fired. That can mean the list is thin, not that the month is fine.</p>
+      ) : visible.length === 0 ? (
+        <p className="mt-6">Nothing in this filter. Switch to All if a finished item dropped out of sight.</p>
       ) : (
         <div className="mt-4">
-          {analysis.findings.map((finding) => (
+          {visible.map((finding) => (
             <FindingCard key={finding.id} finding={finding} />
           ))}
         </div>
@@ -71,6 +95,17 @@ function FindingCard({ finding }: { finding: Finding }) {
   const status = record?.status ?? "open";
   const [note, setNote] = useState(record?.note ?? "");
   const [date, setDate] = useState(record?.followUp ?? "");
+  const [copied, setCopied] = useState(false);
+
+  async function copySteps() {
+    const text = [finding.title, finding.detail, ...finding.steps.map((step, i) => `${i + 1}. ${step}`)].join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  }
 
   return (
     <article className="border-t border-line py-5">
@@ -136,6 +171,9 @@ function FindingCard({ finding }: { finding: Finding }) {
             onClick={() => setAction(finding.id, { followUp: date || null, note })}
           >
             Save note
+          </button>
+          <button type="button" className="btn btn-quiet self-end" onClick={() => void copySteps()}>
+            {copied ? "Copied" : "Copy steps"}
           </button>
         </div>
       </div>
