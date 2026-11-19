@@ -1,0 +1,94 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --color-paper: #f3eee6;
+  --color-sheet: #faf7f2;
+  --color-ink: #1c1916;
+  --color-muted: #5f584f;
+  --color-line: #ddd4c6;
+  --color-brass: #8c6239;
+  --color-brass-soft: #f4eadc;
+  --color-pine: #1f6b45;
+  --color-pine-soft: #e7f3ec;
+  --radius-sm: 2px;
+  --radius-md: 6px;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  body {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 1.0625rem;
+    line-height: 1.5;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    text-wrap: balance;
+    font-weight: 560;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-brass);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: var(--color-brass-soft);
+  }
+}
+
+@layer components {
+  .field-input {
+    @apply h-12 w-full rounded-sm border border-line bg-sheet px-3 text-base text-ink;
+  }
+  .btn {
+    @apply inline-flex h-11 items-center justify-center gap-2 rounded-sm px-4 text-sm font-medium transition-opacity duration-150;
+  }
+  .btn:disabled {
+    @apply cursor-not-allowed opacity-50;
+  }
+  .btn-ink {
+    @apply bg-ink text-paper;
+  }
+  .btn-quiet {
+    @apply border border-line bg-sheet text-ink;
+  }
+  .btn-brass {
+    @apply bg-brass-soft text-ink;
+  }
+  .rule {
+    @apply h-0.5 w-12 bg-brass;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn {
+    transition: none;
+  }
+}
+
+@media print {
+  body {
+    background: white;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+}

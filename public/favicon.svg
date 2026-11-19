@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" role="img" aria-label="Hearth">
+  <rect width="16" height="16" rx="2" fill="#F3EEE6"/>
+  <path fill="#1C1916" d="M3 2h2v12H3V2zm8 0h2v12h-2V2zM3 6h10v2H3V6z"/>
+  <rect x="2" y="10" width="12" height="2" fill="#8C6239"/>
+</svg>
