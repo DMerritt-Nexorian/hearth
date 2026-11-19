@@ -4,6 +4,7 @@ import { formatUSDRange } from "@/lib/hearth/money";
 import { actionStatus, useHearth } from "@/lib/hearth/store";
 import type { ActionStatus, Finding, ProgramMatch, ProgramStatus } from "@/lib/hearth/types";
 import { Panel } from "./ui";
+import { FileOffer } from "./offer";
 
 const STATUS: { id: ActionStatus; label: string }[] = [
   { id: "open", label: "Not started" },
@@ -24,6 +25,7 @@ export function Plan() {
   const profile = useHearth((s) => s.profile);
   const bills = useHearth((s) => s.bills);
   const actions = useHearth((s) => s.actions);
+  const fileMarked = useHearth((s) => s.fileMarked);
   const [filter, setFilter] = useState<"todo" | "done" | "skipped" | "all">("todo");
   if (!profile) {
     return (
@@ -47,6 +49,7 @@ export function Plan() {
         A cash shortfall stays first. Everything else is ordered by the middle of its annual range, discounted for low
         confidence, higher risk, and time. Ranges are not added together. They overlap, and none of them are savings.
       </p>
+      {fileMarked ? null : <FileOffer compact />}
       <div className="mt-4 flex flex-wrap gap-2">
         {(
           [
@@ -90,6 +93,7 @@ export function Plan() {
 }
 
 function FindingCard({ finding }: { finding: Finding }) {
+  const fileMarked = useHearth((s) => s.fileMarked);
   const record = useHearth((s) => s.actions[finding.id]);
   const setAction = useHearth((s) => s.setAction);
   const status = record?.status ?? "open";
@@ -134,48 +138,54 @@ function FindingCard({ finding }: { finding: Finding }) {
         ))}
       </ul>
       <div className="mt-4 flex flex-col gap-3">
-        <div className="flex flex-wrap gap-2">
-          {STATUS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setAction(finding.id, { status: item.id })}
-              className={`btn ${status === item.id ? "btn-ink" : "btn-quiet"}`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <label className="flex flex-col gap-1 text-sm">
-            Follow up
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="field-input"
-            />
-          </label>
-          <label className="flex flex-1 flex-col gap-1 text-sm">
-            Note
-            <input
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              className="field-input"
-              placeholder="What the company actually said"
-            />
-          </label>
-          <button
-            type="button"
-            className="btn btn-quiet self-end"
-            onClick={() => setAction(finding.id, { followUp: date || null, note })}
-          >
-            Save note
-          </button>
-          <button type="button" className="btn btn-quiet self-end" onClick={() => void copySteps()}>
-            {copied ? "Copied" : "Copy steps"}
-          </button>
-        </div>
+        {fileMarked ? (
+          <>
+            <div className="flex flex-wrap gap-2">
+              {STATUS.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setAction(finding.id, { status: item.id })}
+                  className={`btn ${status === item.id ? "btn-ink" : "btn-quiet"}`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <label className="flex flex-col gap-1 text-sm">
+                Follow up
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="field-input"
+                />
+              </label>
+              <label className="flex flex-1 flex-col gap-1 text-sm">
+                Note
+                <input
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  className="field-input"
+                  placeholder="What the company actually said"
+                />
+              </label>
+              <button
+                type="button"
+                className="btn btn-quiet self-end"
+                onClick={() => setAction(finding.id, { followUp: date || null, note })}
+              >
+                Save note
+              </button>
+            </div>
+          </>
+        ) : (
+          <p className="text-sm text-muted">Saving a status or a follow-up is part of Hearth File. The steps above stay free.</p>
+        )}
+        <button type="button" className="btn btn-quiet self-start" onClick={() => void copySteps()}>
+          {copied ? "Copied" : "Copy steps"}
+        </button>
       </div>
     </article>
   );

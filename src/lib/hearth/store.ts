@@ -16,6 +16,8 @@ export type CaseData = {
 };
 
 type Store = CaseData & {
+  /** Local mark only. Stripe is the record of the charge. */
+  fileMarked: boolean;
   setProfile: (profile: Profile, opts?: { fictional?: boolean }) => void;
   upsertBill: (bill: Bill) => void;
   removeBill: (id: string) => void;
@@ -30,6 +32,7 @@ type Store = CaseData & {
   clearAll: () => void;
   markReviewed: (id: string) => void;
   setDebtExtra: (cents: number | null) => void;
+  setFileMarked: (marked: boolean) => void;
 };
 
 const blank: CaseData = {
@@ -54,6 +57,7 @@ export const useHearth = create<Store>()(
   persist(
     (set, get) => ({
       ...blank,
+      fileMarked: false,
       setProfile: (profile, opts) =>
         set({
           profile,
@@ -155,6 +159,19 @@ export const useHearth = create<Store>()(
             stamp("debt-extra", cents == null ? "Debt extra reset to the full surplus." : "Debt extra payment changed."),
           ),
         }),
+      setFileMarked: (marked) =>
+        set({
+          fileMarked: marked,
+          audit: withAudit(
+            get().audit,
+            stamp(
+              "file-mark",
+              marked
+                ? "Marked this browser as Hearth File. Stripe was not checked."
+                : "Removed the Hearth File mark from this browser. The subscription was not canceled.",
+            ),
+          ),
+        }),
     }),
     {
       name: "hearth-case-v1",
@@ -168,6 +185,7 @@ export const useHearth = create<Store>()(
         audit: state.audit,
         fictional: state.fictional,
         debtExtraCents: state.debtExtraCents,
+        fileMarked: state.fileMarked,
       }),
     },
   ),

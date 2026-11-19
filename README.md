@@ -19,6 +19,16 @@ Hearth turns a household ledger into a short list of things worth doing, shows t
 - Filter the plan, and copy the steps for one item.
 - Choose an extra debt payment. If it is larger than what is left after the bills, the model uses only that leftover. It does not invent the difference.
 
+
+## Price
+
+The ledger, the month, and the assistance screens stay free. Hearth File is the working part: follow-ups, debt math, the proof log, and the download.
+
+- $29 a year. This is the price to take.
+- $4 a month, which is $48 a year, if a year will not fit.
+
+Checkout is Stripe. Tax is not collected until a registration exists. After paying, mark the browser. That mark is local. The receipt is the record. Cancel from the billing link in the app.
+
 ## What this is not
 
 Not a chatbot. Not a benefits determination. Not tax software. Not medical, legal, or housing advice. Alaska and Hawaii are not failed against the 48-state poverty table. Knowledge in the engine is dated 2026-11-18 and will go stale. Confirm every program on the official page before you act.

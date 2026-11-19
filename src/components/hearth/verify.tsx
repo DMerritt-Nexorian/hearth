@@ -3,6 +3,7 @@ import { analyze, verifiedAnnualCents } from "@/lib/hearth/engine";
 import { formatUSD, parseDollars, todayISO } from "@/lib/hearth/money";
 import { useHearth } from "@/lib/hearth/store";
 import { Field, Panel, SelectInput, Stat, TextInput } from "./ui";
+import { FileOffer } from "./offer";
 
 export function Verify() {
   const profile = useHearth((s) => s.profile);
@@ -10,6 +11,7 @@ export function Verify() {
   const verifications = useHearth((s) => s.verifications);
   const add = useHearth((s) => s.addVerification);
   const remove = useHearth((s) => s.removeVerification);
+  const fileMarked = useHearth((s) => s.fileMarked);
   const findings = profile ? analyze(profile, bills).findings : [];
   const [label, setLabel] = useState("");
   const [before, setBefore] = useState("");
@@ -66,6 +68,7 @@ export function Verify() {
           note="Sum of confirmed monthly differences, times twelve. A cost increase is negative and stays in the total."
         />
       </div>
+      {fileMarked ? (
       <form
         className="mt-8 grid gap-4 sm:grid-cols-2"
         onSubmit={(e) => {
@@ -105,6 +108,9 @@ export function Verify() {
           </button>
         </div>
       </form>
+      ) : (
+        <FileOffer compact />
+      )}
       <Panel>
         <h2 className="text-2xl">Confirmed rows</h2>
         {verifications.length === 0 ? <p className="mt-3 text-muted">None yet. The green number stays at zero until you put one here.</p> : null}

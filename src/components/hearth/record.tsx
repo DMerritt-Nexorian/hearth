@@ -4,20 +4,21 @@ import { KB_AS_OF } from "@/lib/hearth/knowledge";
 import { useHearth } from "@/lib/hearth/store";
 import type { CaseData } from "@/lib/hearth/store";
 import { Panel } from "./ui";
+import { FileOffer } from "./offer";
 
 export function RecordView() {
-  const data = useHearth((s) => ({
-    profile: s.profile,
-    bills: s.bills,
-    actions: s.actions,
-    verifications: s.verifications,
-    audit: s.audit,
-    fictional: s.fictional,
-    debtExtraCents: s.debtExtraCents,
-  }));
+  const profile = useHearth((s) => s.profile);
+  const bills = useHearth((s) => s.bills);
+  const actions = useHearth((s) => s.actions);
+  const verifications = useHearth((s) => s.verifications);
+  const audit = useHearth((s) => s.audit);
+  const fictional = useHearth((s) => s.fictional);
+  const debtExtraCents = useHearth((s) => s.debtExtraCents);
+  const data = { profile, bills, actions, verifications, audit, fictional, debtExtraCents };
   const replaceAll = useHearth((s) => s.replaceAll);
   const clearAll = useHearth((s) => s.clearAll);
   const loadExample = useHearth((s) => s.loadExample);
+  const fileMarked = useHearth((s) => s.fileMarked);
   const [message, setMessage] = useState("");
   const [confirmClear, setConfirmClear] = useState(false);
   const [pending, setPending] = useState<{ name: string; data: CaseData } | null>(null);
@@ -51,8 +52,11 @@ export function RecordView() {
     <div className="py-6">
       <h2 className="text-3xl">The file, and the rules around it</h2>
       <p className="mt-2 max-w-xl">
-        Download is the package. JSON is the working copy. The HTML brief is one page someone else can read without an account.
+        Download is the working copy. The HTML brief is one page someone else can read without an account. Both are part of Hearth File.
       </p>
+      <FileOffer />
+      {fileMarked ? (
+      <>
       <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
         <button type="button" className="btn btn-ink" onClick={exportJson}>
           Download case JSON
@@ -94,6 +98,8 @@ export function RecordView() {
             Keep the current file
           </button>
         </div>
+      ) : null}
+      </>
       ) : null}
 
       <Panel>

@@ -3,12 +3,14 @@ import { analyze, buildDebtScenarios, resolveExtra } from "@/lib/hearth/engine";
 import { centsToInput, formatUSD, parseDollars } from "@/lib/hearth/money";
 import { useHearth } from "@/lib/hearth/store";
 import { Panel, TextInput } from "./ui";
+import { FileOffer } from "./offer";
 
 export function DebtView() {
   const profile = useHearth((s) => s.profile);
   const bills = useHearth((s) => s.bills);
   const storedExtra = useHearth((s) => s.debtExtraCents);
   const setDebtExtra = useHearth((s) => s.setDebtExtra);
+  const fileMarked = useHearth((s) => s.fileMarked);
   const [raw, setRaw] = useState(storedExtra == null ? "" : centsToInput(storedExtra));
   const [extraError, setExtraError] = useState("");
   if (!profile) {
@@ -30,6 +32,8 @@ export function DebtView() {
         Avalanche puts extra principal on the highest rate. Snowball puts it on the smallest balance. Minimums do not
         roll a finished payment onto the next debt. None of these is a lender, a settlement company, or a refinance.
       </p>
+      {fileMarked ? (
+      <>
       <p className="mt-4 text-sm text-muted">
         Surplus after every bill, including groceries: {formatUSD(Math.max(0, analysis.monthlySurplusCents))} a month.
         The model is using {formatUSD(debt.extraCents)}.
@@ -109,6 +113,10 @@ export function DebtView() {
           </article>
         ))}
       </div>
+      </>
+      ) : (
+        <FileOffer compact />
+      )}
       <Panel>
         <h2 className="text-2xl">If a collector is involved</h2>
         <ul className="mt-3 list-disc space-y-2 pl-5">

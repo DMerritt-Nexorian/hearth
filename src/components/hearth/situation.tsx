@@ -61,6 +61,7 @@ function Dashboard({
   const bills = useHearth((s) => s.bills);
   const actions = useHearth((s) => s.actions);
   const verifications = useHearth((s) => s.verifications);
+  const fileMarked = useHearth((s) => s.fileMarked);
   const [editing, setEditing] = useState(false);
   const [yearly, setYearly] = useState(false);
   const analysis = analyze(profile, bills);
@@ -177,6 +178,17 @@ function Dashboard({
           </button>
         </div>
       </Panel>
+      {fileMarked ? null : (
+        <Panel>
+          <h2 className="text-2xl">The working file is paid</h2>
+          <p className="mt-2 max-w-xl">
+            The ledger, the month, and the assistance screen stay free. Follow-ups, debt math, the proof log, and the download are $29 a year, or $4 a month if a year will not fit.
+          </p>
+          <button type="button" className="btn btn-quiet mt-4" onClick={() => go("record")}>
+            See the price
+          </button>
+        </Panel>
+      )}
       {gaps.length > 0 ? (
         <Panel>
           <h2 className="text-2xl">The ledger is thin</h2>
